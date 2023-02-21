@@ -13,7 +13,10 @@ Within the code, you can also make changes to the individual areas, A, and Young
 Note: when inputting the parameters for the different webs and booms, the row of the array corresponds to the same individual web or boom.
 
 A = [Boom_1, Boom_2, ..., Boom_n]
+
 E = [Boom_1, Boom_2, ..., Boom_n]
 
+
 t = [Web_1, Web_2, ..., Web_n]
+
 G = [Web_1, Web_2, ..., Web_n]
