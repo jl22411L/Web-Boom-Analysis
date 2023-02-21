@@ -20,3 +20,6 @@ E = [Boom_1, Boom_2, ..., Boom_n]
 t = [Web_1, Web_2, ..., Web_n]
 
 G = [Web_1, Web_2, ..., Web_n]
+
+
+Further, their is another piece of code which can find the position of booms within a NACA 4 series aerofoil. By inputting the properties of the aerofoil such as max camber, position of max camber, and thickness to chord ratio it a function and then finds the y position that corresponds to the desired x positions of the booms.
