@@ -1,4 +1,4 @@
-close all; clear; clc;
+clear; close all; clc;
 % This code performs a web boom analysis.
 % It assumes that webs are always straight between two booms.
 
@@ -15,13 +15,13 @@ close all; clear; clc;
 % 1st Element: Force Value
 % 2nd Element: Force x position
 % 3rd Element: Force y position
-Fx = [2000, 0.0925, 0.7767];
-Fy = [0, 0, 0];
-Fz = [0, 0, 0];
+Fx = [10000, -0.623, 40.6923];
+Fy = [1044440, -322.6923, 104.6923];
+Fz = [1, 0, 0];
 
-Mx = 0;
-My = 0;
-Mz = -138;
+Mx = -2800;
+My = -5000;
+Mz = 2000;
 
 
 %
@@ -29,21 +29,21 @@ Mz = -138;
 %
 
 % Boom Positions
-x_b = [-0.21, 0.31, 0.41, -0.14];
-y_b = [0.1, 2.1, -0.31, -0.14];
+x_b = [-1, 1, 1, -1];
+y_b = [1, 1, -1, -1];
 
 
 % Boom Youngs Modulus
-E = 1e9*[200, 200, 200, 200];
+E = 1e9*[70, 70, 70, 70];
 
 % Boom area
-A = [0.5, 0.5, 0.5, 0.5];
+A = 1e-3*[10, 12, 1, 1];
 
 % Web Shear Modulus
-G = 1e6*[20, 20, 20, 20];
+G = 1e9*[28, 28, 28, 28];
 
 % Web Thickness
-t = [0.15, 0.15, 0.15, 0.15];
+t = [0.002, 0.002, 0.002, 0.002];
 
 %
 % Size of Array
@@ -64,8 +64,8 @@ y_c = sum(E.*A.*y_b) / sum(E.*A);
 %
 
 Mx_c = Mx + Fz(1)*Fz(3);
-My_c = My - Fz(1)*Fz(2);
-Mz_c = Mz - Fx(1)*(Fx(3) - y_c) + Fy(1)*(Fy(2) - x_c);
+My_c = My - Fz(1)*(Fz(2) - x_c);
+Mz_c = Mz + Fx(1)*(Fx(3) - y_c) - Fy(1)*(Fy(2) - x_c);
 
 Fx_c = Fx(1);
 Fy_c = Fy(1);
@@ -152,7 +152,8 @@ M_q_open_tot = sum(M_q_open);
 % Finding Shear Centre
 %
 
-shear_centre_open = - M_q_open_tot/sqrt(Fy_c^2 + Fx_c^2);
+shear_centre_open = - (M_q_open_tot)/sqrt(Fy_c^2 + Fx_c^2);
+
 
 
 %
@@ -165,10 +166,10 @@ omega = 2*area;
 
 % Finding the torque experienced by the structure around the shear
 % centre caused by the force loads.
-To = shear_centre_open*sqrt(Fy_c^2 + Fx_c^2) + Mz_c;
+To = shear_centre_open*sqrt(Fy_c^2 + Fx_c^2);
 
 % Calcaulting the closed cell shear flow due to 
-qo = -To / omega;
+qo = -(To + Mz_c) / omega;
 
 %
 % Calcaulting the total Shear flow
@@ -181,7 +182,7 @@ q = q_open + qo;
 % Finding anlge of twist
 %
 
-Twist = (1/omega)*sum(q.*s./G./t) * 180/pi
+Twist = (1/omega)*sum(q.*s./G./t) * 180/pi;
 
 %
 % Finding Shear Centre of the Web-Boom Strucutre
@@ -195,16 +196,31 @@ Twist = (1/omega)*sum(q.*s./G./t) * 180/pi
 % Using the angle and length of the shear centre, an x and y coordinate can
 % be found.
 
-shear_centre_closed = -(omega * sum(q./G./t.*s) / sum(s./G./t) + Mz_c) / sqrt(Fx_c^2 + Fy_c^2);
-x_shear_centre = shear_centre_closed*sin(atan2(Fy_c , Fx_c)) + x_c
-y_shear_centre = shear_centre_closed*cos(atan2(Fy_c , Fx_c)) + y_c
-
-% x_shear_centre_closed = shear_center_distance*sin(force_angle)
-% y_shear_centre_closed = shear_center_distance*cos(force_angle)
+%shear_centre_closed = -(omega * sum(q./G./t.*s) / sum(s./G./t)) / sqrt(Fx_c^2 + Fy_c^2);
+x_shear_centre = (-(omega * sum(q./G./t.*s) / sum(s./G./t) + Mz_c) / Fy_c + x_c) * Fy_c/Fx_c;
+y_shear_centre = (+(omega * sum(q./G./t.*s) / sum(s./G./t) + Mz_c) / Fx_c + y_c) * Fx_c/Fy_c;
 
 
-X_eq = sum(q.*s.*cos(theta)) + Fx_c
-Y_eq = sum(q.*s.*sin(theta)) + Fy_c
-M_eq = sum(q.*s.*cos(theta).*y_b_c) - sum(q.*s.*sin(theta).*x_b_c) + Mz_c
+
+
+X_eq = sum(q.*s.*cos(theta)) + Fx_c;
+Y_eq = sum(q.*s.*sin(theta)) + Fy_c;
+Z_eq = sum(stress_b.*A) - Fz_c;
+M_eq = sum(q.*s.*cos(theta).*y_b_c) - sum(q.*s.*sin(theta).*x_b_c) + Mz_c;
+
+fprintf('Boom Stress (MPa): \n\t')
+disp(stress_b*1e-6)
+
+fprintf('Web Shear Flow (M N/m)): \n\t')
+disp(q*1e-6)
+
+fprintf('Twist (deg): \n\t')
+disp(Twist)
+
+fprintf('x shear centre (m): \n\t')
+disp(x_shear_centre)
+
+fprintf('y shear centre (m): \n\t')
+disp(y_shear_centre)
 
 
