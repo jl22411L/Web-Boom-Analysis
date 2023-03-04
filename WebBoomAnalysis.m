@@ -15,13 +15,13 @@ clear; close all; clc;
 % 1st Element: Force Value
 % 2nd Element: Force x position
 % 3rd Element: Force y position
-Fx = [10000, -0.623, 40.6923];
-Fy = [1044440, -322.6923, 104.6923];
-Fz = [1, 0, 0];
+Fx = [9080, 0, 0];
+Fy = [10, 0, 0];
+Fz = [0, 0, 0];
 
-Mx = -2800;
-My = -5000;
-Mz = 2000;
+Mx = 0;
+My = 0;
+Mz = 5078;
 
 
 %
@@ -29,21 +29,21 @@ Mz = 2000;
 %
 
 % Boom Positions
-x_b = [-1, 1, 1, -1];
-y_b = [1, 1, -1, -1];
+x_b = [0, 0.2, 0.4, 0.6, 0.8, 1.4, 1.6];
+y_b = [0, 0.3, 0.7, 1.2, -3 ,-5, -9];
 
 
 % Boom Youngs Modulus
-E = 1e9*[70, 70, 70, 70];
+E = 1e9*[70, 70, 70, 70, 70, 70, 70];
 
 % Boom area
-A = 1e-3*[10, 12, 1, 1];
+A = 12e-3*[1, 1, 1, 1, 1, 1, 1];
 
 % Web Shear Modulus
-G = 1e9*[28, 28, 28, 28];
+G = 1e9*[28, 28, 28, 28, 28, 28, 28];
 
 % Web Thickness
-t = [0.002, 0.002, 0.002, 0.002];
+t = [0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002];
 
 %
 % Size of Array
@@ -66,6 +66,10 @@ y_c = sum(E.*A.*y_b) / sum(E.*A);
 Mx_c = Mx + Fz(1)*Fz(3);
 My_c = My - Fz(1)*(Fz(2) - x_c);
 Mz_c = Mz + Fx(1)*(Fx(3) - y_c) - Fy(1)*(Fy(2) - x_c);
+
+% These are used for shear centre calcaultions
+Mz_c_x = Mz + Fx(1)*(Fx(3) - y_c);
+Mz_c_y = Mz - Fy(1)*(Fy(2) - x_c);
 
 Fx_c = Fx(1);
 Fy_c = Fy(1);
@@ -109,8 +113,12 @@ end
 % Open Shear Flow Calculation
 %
 
-q_open = +Fx_c*(Kxx/(Kxx*Kyy - Kxy^2))*Ry - Fy_c*(Kxy/(Kxx*Kyy - Kxy^2))*Ry ...
-         +Fy_c*(Kyy/(Kxx*Kyy - Kxy^2))*Rx - Fx_c*(Kxy/(Kxx*Kyy - Kxy^2))*Rx;
+% Find the open cell shear flows due to x and y force. This is done for
+% shear flow calculations.
+qx_open = +Fx_c*(Kxx/(Kxx*Kyy - Kxy^2))*Ry - Fx_c*(Kxy/(Kxx*Kyy - Kxy^2))*Rx;
+qy_open = +Fy_c*(Kyy/(Kxx*Kyy - Kxy^2))*Rx - Fy_c*(Kxy/(Kxx*Kyy - Kxy^2))*Ry;
+q_open = qx_open + qy_open;
+         
 
 %
 % Finding Open Shear Centre of Structure
@@ -139,22 +147,40 @@ end
 s(i_w) = sqrt((x_b_c(1)-x_b_c(i_w))^2 + (y_b_c(1)-y_b_c(i_w))^2);
 theta(i_w) = atan2(y_b_c(1) - y_b_c(i_w), x_b_c(1) - x_b_c(i_w));
 
+% This is finding the total moment
 M_q_open_x = q_open.*s.*cos(theta).*y_b_c;
 M_q_open_y = q_open.*s.*sin(theta).*x_b_c;
-M_q_open = - M_q_open_x + M_q_open_y;
+M_q_open = - M_q_open_x + M_q_open_y; 
+
+% This is finding the moments from the open cell shear flow due to the x
+% force.
+M_qx_open_x = qx_open.*s.*cos(theta).*y_b_c;
+M_qx_open_y = qx_open.*s.*sin(theta).*x_b_c;
+M_qx_open = - M_qx_open_x + M_qx_open_y;
+M_qx_open_tot = sum(M_qx_open);
+
+% This is finding the moments from the open cell shear flow due to the x
+% force.
+M_qy_open_x = qy_open.*s.*cos(theta).*y_b_c;
+M_qy_open_y = qy_open.*s.*sin(theta).*x_b_c;
+M_qy_open = - M_qy_open_x + M_qy_open_y; 
+M_qy_open_tot = sum(M_qy_open);
 
 % Finds the total moment caused by the shear flows
 M_q_open_tot = sum(M_q_open);
-
+% REMEMBER THAT SHEAR FLOW IS OFF BACK. NEED TO BRING TO FRONT FOR
+% EQUILIBRIUM CALCULATIONS
 
 
 %
 % Finding Shear Centre
 %
 
-shear_centre_open = - (M_q_open_tot)/sqrt(Fy_c^2 + Fx_c^2);
-
-
+% Bassically, the open cell shear centre os calculated using the shear flow
+% due to x and y forces independently. Using the total open cell shear flow
+% just caused to many problems and led to an indeterminate problem.
+x_shear_centre_open = -M_qy_open_tot / Fy_c;
+y_shear_centre_open = M_qx_open_tot / Fx_c;
 
 %
 % Finding the shear flow of the closed section
@@ -166,17 +192,25 @@ omega = 2*area;
 
 % Finding the torque experienced by the structure around the shear
 % centre caused by the force loads.
-To = shear_centre_open*sqrt(Fy_c^2 + Fx_c^2);
 
-% Calcaulting the closed cell shear flow due to 
-qo = -(To + Mz_c) / omega;
+% Torque due to x force
+To_y = x_shear_centre_open*Fy_c;
+% Torque due to y force
+To_x = - y_shear_centre_open*Fx_c;
+
+% Calcaulting the closed cell shear flow due to their respective load cases
+qo_x = (To_x - Mz_c_x) / omega;
+qo_y = (To_y - Mz_c_y) / omega;
+qo_tot = qo_x + qo_y;
 
 %
 % Calcaulting the total Shear flow
 %
 
 % Find the total shear flow, including effects due to torques.
-q = q_open + qo;
+qx = qx_open + qo_x;
+qy = qy_open + qo_y;
+q = q_open + qo_tot;
 
 %
 % Finding anlge of twist
@@ -188,25 +222,32 @@ Twist = (1/omega)*sum(q.*s./G./t) * 180/pi;
 % Finding Shear Centre of the Web-Boom Strucutre
 %
 
-% It is assumed that the distance between the origin and the shear centre
-% is perpendicular to the resultant force vector. By finding the angle from
-% the positive x axis between the x and y force, you can find the angle
-% between the shear centre line and the vertical y axis.
+% So using the total shear flows for the individual forces, the shear
+% centre is foind. Similar to the open cell shear flow calcaultions.
+
+x_shear_centre = -(omega * sum(qy./G./t.*s) / sum(s./G./t) + Mz_c_y) / Fy_c + x_c;
+y_shear_centre = (omega * sum(qx./G./t.*s) / sum(s./G./t) + Mz_c_x) / Fx_c + y_c;
+
+
 %
-% Using the angle and length of the shear centre, an x and y coordinate can
-% be found.
+% Equilibrium Calcualtions
+%
 
-%shear_centre_closed = -(omega * sum(q./G./t.*s) / sum(s./G./t)) / sqrt(Fx_c^2 + Fy_c^2);
-x_shear_centre = (-(omega * sum(q./G./t.*s) / sum(s./G./t) + Mz_c) / Fy_c + x_c) * Fy_c/Fx_c;
-y_shear_centre = (+(omega * sum(q./G./t.*s) / sum(s./G./t) + Mz_c) / Fx_c + y_c) * Fx_c/Fy_c;
+% Checking X Force Equlibrium
+% Xx_eq = sum(qx.*s.*cos(theta)) + Fx_c
+% Yx_eq = sum(qx.*s.*sin(theta))
+% Mx_eq = -sum(qx.*s.*cos(theta).*y_b_c) + sum(qx.*s.*sin(theta).*x_b_c) + Mz_c_x
 
+% Checking Y Force Equlibrium
+% Xy_eq = sum(qy.*s.*cos(theta))
+% Yy_eq = sum(qy.*s.*sin(theta)) + Fy_c
+% My_eq = -sum(qy.*s.*cos(theta).*y_b_c) + sum(qy.*s.*sin(theta).*x_b_c) + Mz_c_y
 
-
-
-X_eq = sum(q.*s.*cos(theta)) + Fx_c;
-Y_eq = sum(q.*s.*sin(theta)) + Fy_c;
-Z_eq = sum(stress_b.*A) - Fz_c;
-M_eq = sum(q.*s.*cos(theta).*y_b_c) - sum(q.*s.*sin(theta).*x_b_c) + Mz_c;
+% Checking equlibrium for whole problem
+X_eq = sum(q.*s.*cos(theta)) + Fx_c
+Y_eq = sum(q.*s.*sin(theta)) + Fy_c
+Z_eq = sum(stress_b.*A) - Fz_c
+M_eq = -sum(q.*s.*cos(theta).*y_b_c) + sum(q.*s.*sin(theta).*x_b_c) + Mz_c
 
 fprintf('Boom Stress (MPa): \n\t')
 disp(stress_b*1e-6)
@@ -216,6 +257,7 @@ disp(q*1e-6)
 
 fprintf('Twist (deg): \n\t')
 disp(Twist)
+
 
 fprintf('x shear centre (m): \n\t')
 disp(x_shear_centre)
