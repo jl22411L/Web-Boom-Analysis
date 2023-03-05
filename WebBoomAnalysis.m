@@ -15,13 +15,13 @@ clear; close all; clc;
 % 1st Element: Force Value
 % 2nd Element: Force x position
 % 3rd Element: Force y position
-Fx = [9080, 0, 0];
-Fy = [10, 0, 0];
+Fx = [100, 0.0521, 0.2647];
+Fy = [100, 0.0521, 0.2647];
 Fz = [0, 0, 0];
 
 Mx = 0;
 My = 0;
-Mz = 5078;
+Mz = 0;
 
 
 %
@@ -29,21 +29,21 @@ Mz = 5078;
 %
 
 % Boom Positions
-x_b = [0, 0.2, 0.4, 0.6, 0.8, 1.4, 1.6];
-y_b = [0, 0.3, 0.7, 1.2, -3 ,-5, -9];
+x_b = [-0.2, 0.3, 0.1, -0.1];
+y_b = [0.3, 0.7, -0.8, 0.1];
 
 
 % Boom Youngs Modulus
-E = 1e9*[70, 70, 70, 70, 70, 70, 70];
+E = 1e9*[70, 70, 70, 70];
 
 % Boom area
-A = 12e-3*[1, 1, 1, 1, 1, 1, 1];
+A = 12e-3*[1, 1, 1, 1];
 
 % Web Shear Modulus
-G = 1e9*[28, 28, 28, 28, 28, 28, 28];
+G = 1e9*[28, 28, 28, 28];
 
 % Web Thickness
-t = [0.002, 0.002, 0.002, 0.002, 0.002, 0.002, 0.002];
+t = [0.002, 0.002, 0.002, 0.002];
 
 %
 % Size of Array
@@ -169,7 +169,7 @@ M_qy_open_tot = sum(M_qy_open);
 % Finds the total moment caused by the shear flows
 M_q_open_tot = sum(M_q_open);
 % REMEMBER THAT SHEAR FLOW IS OFF BACK. NEED TO BRING TO FRONT FOR
-% EQUILIBRIUM CALCULATIONS
+% EQUILIBRIUM CALCULATIONS.
 
 
 %
@@ -179,8 +179,8 @@ M_q_open_tot = sum(M_q_open);
 % Bassically, the open cell shear centre os calculated using the shear flow
 % due to x and y forces independently. Using the total open cell shear flow
 % just caused to many problems and led to an indeterminate problem.
-x_shear_centre_open = -M_qy_open_tot / Fy_c;
-y_shear_centre_open = M_qx_open_tot / Fx_c;
+x_shear_centre_open = -(M_qy_open_tot)/ Fy_c;
+y_shear_centre_open = (M_qx_open_tot) / Fx_c;
 
 %
 % Finding the shear flow of the closed section
@@ -196,12 +196,12 @@ omega = 2*area;
 % Torque due to x force
 To_y = x_shear_centre_open*Fy_c;
 % Torque due to y force
-To_x = - y_shear_centre_open*Fx_c;
+To_x = -y_shear_centre_open*Fx_c;
 
 % Calcaulting the closed cell shear flow due to their respective load cases
-qo_x = (To_x - Mz_c_x) / omega;
-qo_y = (To_y - Mz_c_y) / omega;
-qo_tot = qo_x + qo_y;
+qo_x = -(To_x - Mz_c_x) / omega;
+qo_y = -(To_y - Mz_c_y) / omega;
+qo_tot = -(To_x + To_y - Mz_c) / omega;
 
 %
 % Calcaulting the total Shear flow
@@ -225,8 +225,8 @@ Twist = (1/omega)*sum(q.*s./G./t) * 180/pi;
 % So using the total shear flows for the individual forces, the shear
 % centre is foind. Similar to the open cell shear flow calcaultions.
 
-x_shear_centre = -(omega * sum(qy./G./t.*s) / sum(s./G./t) + Mz_c_y) / Fy_c + x_c;
-y_shear_centre = (omega * sum(qx./G./t.*s) / sum(s./G./t) + Mz_c_x) / Fx_c + y_c;
+x_shear_centre = -(omega * sum(qy./G./t.*s) / sum(s./G./t) - Mz_c_y) / Fy_c + x_c;
+y_shear_centre = (omega * sum(qx./G./t.*s) / sum(s./G./t) - Mz_c_x) / Fx_c + y_c;
 
 
 %
@@ -234,14 +234,14 @@ y_shear_centre = (omega * sum(qx./G./t.*s) / sum(s./G./t) + Mz_c_x) / Fx_c + y_c
 %
 
 % Checking X Force Equlibrium
-% Xx_eq = sum(qx.*s.*cos(theta)) + Fx_c
-% Yx_eq = sum(qx.*s.*sin(theta))
-% Mx_eq = -sum(qx.*s.*cos(theta).*y_b_c) + sum(qx.*s.*sin(theta).*x_b_c) + Mz_c_x
+Xx_eq = sum(qx.*s.*cos(theta)) + Fx_c;
+Yx_eq = sum(qx.*s.*sin(theta));
+Mx_eq = -sum(qx.*s.*cos(theta).*y_b_c) + sum(qx.*s.*sin(theta).*x_b_c) + Mz_c_x;
 
 % Checking Y Force Equlibrium
-% Xy_eq = sum(qy.*s.*cos(theta))
-% Yy_eq = sum(qy.*s.*sin(theta)) + Fy_c
-% My_eq = -sum(qy.*s.*cos(theta).*y_b_c) + sum(qy.*s.*sin(theta).*x_b_c) + Mz_c_y
+Xy_eq = sum(qy.*s.*cos(theta));
+Yy_eq = sum(qy.*s.*sin(theta)) + Fy_c;
+My_eq = -sum(qy.*s.*cos(theta).*y_b_c) + sum(qy.*s.*sin(theta).*x_b_c) + Mz_c_y;
 
 % Checking equlibrium for whole problem
 X_eq = sum(q.*s.*cos(theta)) + Fx_c
@@ -264,5 +264,3 @@ disp(x_shear_centre)
 
 fprintf('y shear centre (m): \n\t')
 disp(y_shear_centre)
-
-
